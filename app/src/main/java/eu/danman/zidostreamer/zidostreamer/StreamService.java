@@ -17,23 +17,17 @@ import com.mstar.android.tvapi.common.TvManager;
 import com.mstar.android.tvapi.common.exception.TvCommonException;
 import com.mstar.android.tvapi.common.vo.TvOsType;
 
-import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 
 
 public class StreamService extends Service {
 
-    String streamFifo;
     String ffmpegBin;
-
     android.hardware.Camera mCamera;
     MediaRecorder mMediaRecorder;
     Process ffmpegProcess;
@@ -87,19 +81,14 @@ public class StreamService extends Service {
 
     public static void changeInputSource(TvOsType.EnumInputSource eis)
     {
-
         TvCommonManager commonService = TvCommonManager.getInstance();
 
-        if (commonService != null)
-        {
+        if (commonService != null) {
             TvOsType.EnumInputSource currentSource = commonService.getCurrentInputSource();
-            if (currentSource != null)
-            {
-                if (currentSource.equals(eis))
-                {
+            if (currentSource != null) {
+                if (currentSource.equals(eis)) {
                     return;
                 }
-
                 commonService.setInputSource(eis);
             }
 
@@ -110,14 +99,13 @@ public class StreamService extends Service {
     public static synchronized boolean enableHDMI()
     {
         boolean bRet = false;
-        try
-        {
+        try {
             changeInputSource(TvOsType.EnumInputSource.E_INPUT_SOURCE_STORAGE);
             changeInputSource(TvOsType.EnumInputSource.E_INPUT_SOURCE_HDMI);
             bRet = TvManager.getInstance().getPlayerManager().isSignalStable();
-        } catch (TvCommonException e)
-        {
-            e.printStackTrace();
+        }
+        catch (TvCommonException e) {
+            Log.e(LOG_TAG,e.getMessage(),e);
         }
         return bRet;
     }
@@ -134,17 +122,6 @@ public class StreamService extends Service {
         return c; // returns null if camera is unavailable
     }
 
-    boolean isProcessRunning(Process process){
-
-        try {
-            process.exitValue();
-        } catch (IllegalThreadStateException e){
-            return true;
-        }
-
-        return false;
-    }
-
     private String buildFfmpegCmdUDP(String ip, String port) {
         return
                 ffmpegBin
@@ -156,112 +133,59 @@ public class StreamService extends Service {
     private String buildFfmpegCmdRTMP(String url) {
         return
                 ffmpegBin
-                        + " -i - "
-                        + " -strict experimental -codec:a copy -bsf:a aac_adtstoasc -codec:v copy"
-                        + " -f flv " + url;
+                + " -i - "
+                + " -strict experimental -codec:a copy -bsf:a aac_adtstoasc -codec:v copy"
+                + " -f flv " + url;
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        //TODO do something
 
-        // try cleanup first
         releaseMediaPipeline();
 
-        enableHDMI();
-
-        //make a pipe containing a read and a write parcelfd
-        ParcelFileDescriptor[] fdPair = new ParcelFileDescriptor[0];
+        // Start ffmpeg
         try {
-            fdPair = ParcelFileDescriptor.createPipe();
-        } catch (IOException e) {
-            e.printStackTrace();
-
-            return Service.START_NOT_STICKY;
-        }
-
-        //get a handle to your read and write fd objects.
-        ParcelFileDescriptor readFD = fdPair[0];
-        ParcelFileDescriptor writeFD = fdPair[1];
-
-
-        try {
-
             String ffmpegCmd = buildFfmpegCmdUDP("224.0.0.0", "10000");
             Log.d(LOG_TAG, ffmpegCmd);
-
             ffmpegProcess = Runtime.getRuntime().exec(ffmpegCmd);
-
-            final BufferedReader in = new BufferedReader(new InputStreamReader(ffmpegProcess.getErrorStream()));
-
-            final Process thisFFMPEG = ffmpegProcess;
-
-            // create logger thread
-            Thread thread = new Thread() {
-                @Override
-                public void run() {
-
-                    String log = null;
-
-                    try {
-
-                        while(isProcessRunning(thisFFMPEG)) {
-
-                            log = in.readLine();
-
-                            if ((log != null) && (log.length() > 0)){
-                                Log.d(LOG_TAG+"-ffmpeg", log);
-                            } else {
-                                sleep(100);
-                            }
-
-                        }
-
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-
-            thread.start();
-
+            new ProcessStderrLogger(ffmpegProcess);
         } catch (IOException e) {
-            e.printStackTrace();
-
+            Log.e(LOG_TAG, e.getMessage(), e);
             return Service.START_NOT_STICKY;
         }
 
-
-        // create output UDP socket
-        ParcelFileDescriptor socketWrapper = null;
-
+        //make a pipe containing a read and a write parcelfd
+        ParcelFileDescriptor[] camcoderPipe;
         try {
-            DatagramSocket socket = new DatagramSocket();
-            socket.connect(InetAddress.getByName("127.0.0.1"), 12345);
-            socketWrapper = ParcelFileDescriptor.fromDatagramSocket(socket);
+            camcoderPipe = ParcelFileDescriptor.createPipe();
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(LOG_TAG, e.getMessage(), e);
+            return Service.START_NOT_STICKY;
         }
+        //get a handle to your read and write fd objects.
+        FileDescriptor camcoderReadFd = camcoderPipe[0].getFileDescriptor();
+        FileDescriptor camcoderWriteFd = camcoderPipe[1].getFileDescriptor();;
+
+        InputOutputPumper encoder2ffmpegPumper = new InputOutputPumper(
+                new FileInputStream(camcoderReadFd),
+                ffmpegProcess.getOutputStream());
+        encoder2ffmpegPumper.start();
+
 
         // initialize recording hardware
+        enableHDMI();
         mCamera = getCameraInstance();
-
-        mMediaRecorder = new MediaRecorder();
-
         Camera.Parameters camParams = mCamera.getParameters();
-
         camParams.set(MCamera.Parameters.KEY_TRAVELING_RES, MCamera.Parameters.E_TRAVELING_RES_1920_1080);
         camParams.set(MCamera.Parameters.KEY_TRAVELING_MODE, MCamera.Parameters.E_TRAVELING_ALL_VIDEO);
         camParams.set(MCamera.Parameters.KEY_TRAVELING_MEM_FORMAT, MCamera.Parameters.E_TRAVELING_MEM_FORMAT_YUV422_YUYV);
         camParams.set(MCamera.Parameters.KEY_MAIN_INPUT_SOURCE, MCamera.Parameters.MAPI_INPUT_SOURCE_HDMI);
         camParams.set(MCamera.Parameters.KEY_TRAVELING_FRAMERATE, 30);
         camParams.set(MCamera.Parameters.KEY_TRAVELING_SPEED, MCamera.Parameters.E_TRAVELING_SPEED_FAST);
-
         mCamera.setParameters(camParams);
 
         // Step 1: Unlock and set camera to MediaRecorder
+        mMediaRecorder = new MediaRecorder();
         mCamera.unlock();
         mMediaRecorder.setCamera(mCamera);
 
@@ -269,61 +193,22 @@ public class StreamService extends Service {
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
 
-
         // Step 3: Set a CamcorderProfile (requires API Level 8 or higher)
         //mMediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
 
-
         // set TS
         mMediaRecorder.setOutputFormat(8);
-//        mMediaRecorder.
-// (MediaRecorder.AudioEncoder.AAC);
         mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.HE_AAC);
         mMediaRecorder.setAudioSamplingRate(44100);
-        mMediaRecorder.setAudioEncodingBitRate(128*1024);
+        mMediaRecorder.setAudioEncodingBitRate(128 * 1024);
 
         mMediaRecorder.setVideoSize(1920, 1080);
         mMediaRecorder.setVideoFrameRate(30);
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mMediaRecorder.setVideoEncodingBitRate(2000*1024);
-
+        mMediaRecorder.setVideoEncodingBitRate(2000 * 1024);
 
         // Step 4: Set output file
-        mMediaRecorder.setOutputFile(writeFD.getFileDescriptor());
-
-
-        // create reader thread
-
-        //next create an input stream to read from the read side of the pipe.
-
-
-        //final BufferedInputStream bufferedReader = new BufferedInputStream(reader);
-
-        final ParcelFileDescriptor finalreadFD = readFD;
-
-        Thread readerThread = new Thread() {
-            @Override
-            public void run() {
-
-                byte[] buffer = new byte[32*1024];
-                int read = 0;
-
-                final OutputStream ffmpegInput = ffmpegProcess.getOutputStream();
-                final FileInputStream reader = new FileInputStream(finalreadFD.getFileDescriptor());
-                try {
-                    while (true) {
-                        read = reader.read(buffer);
-                        ffmpegInput.write(buffer, 0, read);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    onDestroy();
-                }
-            }
-        };
-
-        readerThread.start();
-
+        mMediaRecorder.setOutputFile(camcoderWriteFd);
 
         // Step 5: Set the preview output
         //mMediaRecorder.setPreviewDisplay(mPreview.getHolder().getSurface());
@@ -338,7 +223,6 @@ public class StreamService extends Service {
             Log.d(LOG_TAG, "IOException preparing MediaRecorder: " + e.getMessage());
             releaseMediaRecorder();
         }
-
         mMediaRecorder.start();
 
         return Service.START_STICKY;
