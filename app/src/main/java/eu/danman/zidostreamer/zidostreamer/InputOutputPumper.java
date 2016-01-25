@@ -10,23 +10,30 @@ public class InputOutputPumper extends Thread {
     final InputStream inputStream;
     final OutputStream outputStream;
     final String LOG_TAG = InputOutputPumper.class.getSimpleName();
+    final InputOutputPumperCallback callback;
 
-    public InputOutputPumper(InputStream inputStream, OutputStream outputStream) {
+    public interface InputOutputPumperCallback {
+        void onComplete();
+    }
+
+    public InputOutputPumper(InputStream inputStream, OutputStream outputStream, InputOutputPumperCallback callback) {
         this.inputStream = inputStream;
         this.outputStream = outputStream;
+        this.callback = callback;
     }
 
     @Override
     public void run() {
         try {
+            int read;
             byte[] buffer = new byte[32*1024];
-            while (true) {
-                int read = inputStream.read(buffer);
+            while ( (read = inputStream.read(buffer)) > 0 ) {
                 outputStream.write(buffer, 0, read);
             }
         } catch (IOException e) {
             Log.e(LOG_TAG, e.getMessage(), e);
-            //TODO: onDestroy();
+            if(callback!=null)
+                callback.onComplete();
         }
     }
 }
