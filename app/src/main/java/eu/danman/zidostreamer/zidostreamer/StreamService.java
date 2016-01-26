@@ -9,8 +9,8 @@ import android.util.Log;
 
 public class StreamService extends Service {
 
-    StreamSession session = null;
-    final static String LOG_TAG = StreamService.class.getSimpleName();
+    private StreamSession session = null;
+    private final static String LOG_TAG = StreamService.class.getSimpleName();
 
 
     public StreamService() {

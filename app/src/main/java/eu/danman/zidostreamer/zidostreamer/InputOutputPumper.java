@@ -6,11 +6,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class InputOutputPumper extends Thread {
-    final InputStream inputStream;
-    final OutputStream outputStream;
-    final String LOG_TAG = InputOutputPumper.class.getSimpleName();
-    final InputOutputPumperCallback callback;
+class InputOutputPumper extends Thread {
+    final private InputStream inputStream;
+    final private OutputStream outputStream;
+    final private String LOG_TAG = InputOutputPumper.class.getSimpleName();
+    final private InputOutputPumperCallback callback;
 
     public interface InputOutputPumperCallback {
         void onComplete();

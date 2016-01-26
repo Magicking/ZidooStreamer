@@ -17,15 +17,16 @@ import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-public class StreamSession {
+@SuppressWarnings("deprecation")
+class StreamSession {
 
-    final static String LOG_TAG = StreamSession.class.getSimpleName();
-    final Context context;
-    final StreamSessionCallback callback;
+    private final static String LOG_TAG = StreamSession.class.getSimpleName();
+    private final Context context;
+    private final StreamSessionCallback callback;
 
-    android.hardware.Camera mCamera;
-    MediaRecorder mMediaRecorder;
-    FfmpegProcess ffmpegProcess;
+    private android.hardware.Camera mCamera;
+    private MediaRecorder mMediaRecorder;
+    private FfmpegProcess ffmpegProcess;
 
     interface StreamSessionCallback {
         void onComplete();
@@ -36,7 +37,7 @@ public class StreamSession {
         this.callback = callback;
     }
 
-    public void start() throws IOException {
+    public void start() throws Exception {
         startStreaming();
     }
 
@@ -45,7 +46,7 @@ public class StreamSession {
         releaseMediaPipeline();
     }
 
-    public static void changeInputSource(TvOsType.EnumInputSource eis)
+    private static void changeInputSource(TvOsType.EnumInputSource eis)
     {
         TvCommonManager commonService = TvCommonManager.getInstance();
 
@@ -62,22 +63,22 @@ public class StreamSession {
 
     }
 
-    public static synchronized boolean enableHDMI()
+    private static synchronized void enableHDMI() throws TvCommonException
     {
-        boolean bRet = false;
-        try {
+        boolean bRet;
+        int i=0;
+        do {
             changeInputSource(TvOsType.EnumInputSource.E_INPUT_SOURCE_STORAGE);
             changeInputSource(TvOsType.EnumInputSource.E_INPUT_SOURCE_HDMI);
             bRet = TvManager.getInstance().getPlayerManager().isSignalStable();
-        }
-        catch (TvCommonException e) {
-            Log.e(LOG_TAG,e.getMessage(),e);
-        }
-        return bRet;
+        } while( !bRet && i++<3 );
+
+        if(!bRet)
+            Log.e(LOG_TAG, "enableHDMI: signal is not stable");
     }
 
     /** A safe way to get an instance of the Camera object. */
-    public static Camera getCameraInstance(){
+    private static Camera getCameraInstance(){
         Camera c = null;
         try {
             c = Camera.open(5); // attempt to get a Camera instance
@@ -88,8 +89,8 @@ public class StreamSession {
         return c; // returns null if camera is unavailable
     }
 
-    public void startStreaming()
-           throws IOException
+    private void startStreaming()
+           throws Exception
     {
 
         ffmpegProcess = new FfmpegProcess(context);

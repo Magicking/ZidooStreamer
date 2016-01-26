@@ -1,19 +1,19 @@
 package eu.danman.zidostreamer.zidostreamer;
 
 import android.content.Intent;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends AppCompatActivity {
 
 
-    SurfaceView surfaceView = null;
-    SurfaceHolder mSurfaceHolder = null;
-    SurfaceHolder.Callback	callback = null;
+    private SurfaceView surfaceView = null;
+    private SurfaceHolder mSurfaceHolder = null;
+    private SurfaceHolder.Callback	callback = null;
 
 
 

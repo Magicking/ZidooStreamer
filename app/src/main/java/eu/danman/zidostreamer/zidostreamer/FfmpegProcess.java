@@ -10,10 +10,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class FfmpegProcess {
+class FfmpegProcess {
 
     private static String ffmpegBinPath;
-    final static String LOG_TAG = FfmpegProcess.class.getSimpleName();
+    final private static String LOG_TAG = FfmpegProcess.class.getSimpleName();
 
     private ProcessStderrLogger stderrLogger;
     private Process ffmpegProcess;
@@ -29,13 +29,16 @@ public class FfmpegProcess {
         if (!ffmpegBinFile.exists()) {
             File ffmpegBinDir = new File(ffmpegBinFile.getParent());
             if (!ffmpegBinDir.exists()) {
-                ffmpegBinDir.mkdirs();
+                if(!ffmpegBinDir.mkdirs() )
+                    throw new RuntimeException("Failed to create "+ffmpegBinDir.toString());
             }
 
             extractAssetFile("ffmpeg", ffmpegBinPath, context);
 
             ffmpegBinFile = new File(ffmpegBinPath);
-            ffmpegBinFile.setExecutable(true);
+            if(!ffmpegBinFile.setExecutable(true)) {
+                throw new RuntimeException("Failed to set executable "+ffmpegBinDir.toString());
+            }
         }
         FfmpegProcess.ffmpegBinPath = ffmpegBinPath;
     }

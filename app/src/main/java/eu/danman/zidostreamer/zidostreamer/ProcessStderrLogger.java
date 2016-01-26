@@ -7,8 +7,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 
-public class ProcessStderrLogger extends Thread {
-    protected final Process process;
+class ProcessStderrLogger extends Thread {
+    private final Process process;
 
     public ProcessStderrLogger(Process process) {
         this.process = process;
@@ -28,9 +28,7 @@ public class ProcessStderrLogger extends Thread {
                     sleep(100);
                 }
             }
-        } catch (InterruptedException e) {
-            Log.d(LOG_TAG, e.getMessage(), e);
-        } catch (IOException e) {
+        } catch (InterruptedException | IOException e) {
             Log.d(LOG_TAG, e.getMessage(), e);
         }
     }
