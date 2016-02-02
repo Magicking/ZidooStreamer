@@ -8,6 +8,9 @@ import java.io.InputStreamReader;
 
 
 class ProcessStderrLogger extends Thread {
+
+    private final static String LOG_TAG = ProcessStderrLogger.class.getSimpleName();
+
     private final Process process;
 
     public ProcessStderrLogger(Process process) {
@@ -17,6 +20,8 @@ class ProcessStderrLogger extends Thread {
 
     @Override
     public void run() {
+        Log.d(LOG_TAG,"stopAndDestroy thread "+Thread.currentThread().getId());
+
         final BufferedReader stderr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
         final String LOG_TAG = process.toString();
         try {

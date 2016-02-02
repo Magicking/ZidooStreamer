@@ -1,6 +1,27 @@
 <resources>
-    <string name="app_name">ZidoStreamer</string>
+    <string name="app_name">Epiphan Streamer</string>
 
-    <string name="hello_world">Hello world!</string>
+    <string name="action_start_publishing">Start Streaming</string>
+    <string name="action_stop_publishing">Stop Streaming</string>
     <string name="action_settings">Settings</string>
+
+    <string name="title_activity_settings">Settings</string>
+
+    <string name="pref_publish_type_title">Publish Type</string>
+    <string name="pref_publish_type_key">publish_type</string>
+    <string name="pref_publish_type_default">@string/pref_publish_type_UDP</string>
+    <string name="pref_publish_type_UDP">UDP</string>
+    <string name="pref_publish_type_YouTube">YouTube</string>
+
+    <string name="pref_publish_youtube_channel_title">YouTube Channel/Key</string>
+    <string name="pref_publish_youtube_channel">youtube_channel</string>
+    <string name="pref_publish_youtube_channel_default"></string>
+    <string name="rtmp_youtube_baseurl">rtmp://a.rtmp.youtube.com/live2/</string>
+
+    <string name="pref_publish_UDP_ip_title">UDP Address</string>
+    <string name="pref_publish_UDP_ip_key">udp_ip</string>
+    <string name="pref_publish_UDP_ip_default">224.0.0.0</string>
+    <string name="pref_publish_UDP_port_title">UDP Port</string>
+    <string name="pref_publish_UDP_port_key">udp_port</string>
+    <string name="pref_publish_UDP_port_default">10000</string>
 </resources>

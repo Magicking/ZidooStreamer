@@ -24,6 +24,8 @@ class InputOutputPumper extends Thread {
 
     @Override
     public void run() {
+        Log.d(LOG_TAG,"run thread "+Thread.currentThread().getId());
+
         try {
             int read;
             byte[] buffer = new byte[32*1024];

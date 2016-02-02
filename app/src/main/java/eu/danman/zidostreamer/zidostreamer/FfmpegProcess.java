@@ -95,8 +95,9 @@ class FfmpegProcess {
     private String buildFfmpegCmdRTMP(String url) {
         return
                 ffmpegBinPath
-                        + " -i - "
-                        + " -strict experimental -codec:a copy -bsf:a aac_adtstoasc -codec:v copy"
+                        + " -i - -strict experimental "
+                        + " -codec:v copy"
+                        + " -codec:a aac -b:a 128k"
                         + " -f flv " + url;
     }
 
@@ -107,6 +108,8 @@ class FfmpegProcess {
 
 
     public void stopAndDestroy() {
+        Log.d(LOG_TAG,"stopAndDestroy thread "+Thread.currentThread().getId());
+
         if( ffmpegProcess != null ) {
             ffmpegProcess.destroy();
             ffmpegProcess = null;

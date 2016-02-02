@@ -5,6 +5,7 @@ import android.content.Context;
 import android.hardware.Camera;
 import android.media.MediaRecorder;
 import android.os.ParcelFileDescriptor;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.mstar.android.camera.MCamera;
@@ -38,11 +39,12 @@ class StreamSession {
     }
 
     public void start() throws Exception {
+        Log.e(LOG_TAG,"start thread "+Thread.currentThread().getId());
         startStreaming();
     }
 
     public void stopAndDestroy() {
-        Log.e(LOG_TAG, "stopAndDestroy");
+        Log.e(LOG_TAG,"stopAndDestroy thread "+Thread.currentThread().getId());
         releaseMediaPipeline();
     }
 
@@ -77,6 +79,12 @@ class StreamSession {
             Log.e(LOG_TAG, "enableHDMI: signal is not stable");
     }
 
+    private static synchronized void disableHDMI()
+    {
+        changeInputSource(TvOsType.EnumInputSource.E_INPUT_SOURCE_HDMI);
+    }
+
+
     /** A safe way to get an instance of the Camera object. */
     private static Camera getCameraInstance(){
         Camera c = null;
@@ -89,20 +97,50 @@ class StreamSession {
         return c; // returns null if camera is unavailable
     }
 
+
+    private FfmpegProcess startFfmpeg() throws IOException {
+        FfmpegProcess ffmpegProcess = new FfmpegProcess(context);
+
+        String publishing_type = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(context.getString(R.string.pref_publish_type_key), context.getString(R.string.pref_publish_type_default));
+        Log.d(LOG_TAG, "Publishing Type is " + publishing_type);
+
+        if( context.getString(R.string.pref_publish_type_UDP).equals(publishing_type) ) {
+            String stream_ip = PreferenceManager
+                    .getDefaultSharedPreferences(context)
+                    .getString(context.getString(R.string.pref_publish_UDP_ip_key), context.getString(R.string.pref_publish_UDP_ip_default));
+            String stream_port = PreferenceManager
+                    .getDefaultSharedPreferences(context)
+                    .getString(context.getString(R.string.pref_publish_UDP_port_key), context.getString(R.string.pref_publish_UDP_port_default));
+            ffmpegProcess.startFfmpegProcessUDP(stream_ip, stream_port);
+
+        } else if( context.getString(R.string.pref_publish_type_YouTube).equals(publishing_type) ) {
+            String stream_key = PreferenceManager
+                    .getDefaultSharedPreferences(context)
+                    .getString(context.getString(R.string.pref_publish_youtube_channel), context.getString(R.string.pref_publish_youtube_channel_default));
+            if(stream_key.equals("") || stream_key.length()<10) {
+                throw new IOException("Misconfigured youtube channel");
+            }
+            ffmpegProcess.startFfmpegProcessRTMP(context.getString(R.string.rtmp_youtube_baseurl)+stream_key);
+        }
+
+        return ffmpegProcess;
+    }
+
     private void startStreaming()
            throws Exception
     {
-
-        ffmpegProcess = new FfmpegProcess(context);
+        Log.d(LOG_TAG,"startStreaming thread "+Thread.currentThread().getId());
         try {
-            ffmpegProcess.startFfmpegProcessUDP("224.0.0.0", "10000");
+            ffmpegProcess = startFfmpeg();
         } catch (IOException e) {
             Log.e(LOG_TAG, e.getMessage(), e);
             throw e;
         }
 
         //make a pipe containing a read and a write parcelfd
-        ParcelFileDescriptor[] camcoderPipe;
+        final ParcelFileDescriptor[] camcoderPipe;
         try {
             camcoderPipe = ParcelFileDescriptor.createPipe();
         } catch (IOException e) {
@@ -120,7 +158,16 @@ class StreamSession {
                     @Override
                     public void onComplete() {
                         Log.e(LOG_TAG, "onComplete");
-                        if(callback!=null)
+                        try {
+                            camcoderPipe[0].close();
+                        } catch (IOException e) {
+                            Log.i(LOG_TAG, e.getMessage(), e);
+                        }
+                        try {
+                            camcoderPipe[1].close();
+                        } catch (IOException e) {
+                            Log.i(LOG_TAG, e.getMessage(), e);
+                        }                        if(callback!=null)
                             callback.onComplete();
                     }
                 });
@@ -130,7 +177,7 @@ class StreamSession {
         enableHDMI();
         mCamera = getCameraInstance();
         Camera.Parameters camParams = mCamera.getParameters();
-        camParams.set(MCamera.Parameters.KEY_TRAVELING_RES, MCamera.Parameters.E_TRAVELING_RES_1920_1080);
+        camParams.set(MCamera.Parameters.KEY_TRAVELING_RES, MCamera.Parameters.E_TRAVELING_RES_1280_720);
         camParams.set(MCamera.Parameters.KEY_TRAVELING_MODE, MCamera.Parameters.E_TRAVELING_ALL_VIDEO);
         camParams.set(MCamera.Parameters.KEY_TRAVELING_MEM_FORMAT, MCamera.Parameters.E_TRAVELING_MEM_FORMAT_YUV422_YUYV);
         camParams.set(MCamera.Parameters.KEY_MAIN_INPUT_SOURCE, MCamera.Parameters.MAPI_INPUT_SOURCE_HDMI);
@@ -152,14 +199,16 @@ class StreamSession {
 
         // set TS
         mMediaRecorder.setOutputFormat(8);
-        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.HE_AAC);
-        mMediaRecorder.setAudioSamplingRate(44100);
-        mMediaRecorder.setAudioEncodingBitRate(128 * 1024);
 
-        mMediaRecorder.setVideoSize(1920, 1080);
+        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mMediaRecorder.setAudioSamplingRate(44100);
+        mMediaRecorder.setAudioChannels(2);
+        mMediaRecorder.setAudioEncodingBitRate(1 * 128 * 1024);
+
+        mMediaRecorder.setVideoSize(1280, 720);
         mMediaRecorder.setVideoFrameRate(30);
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mMediaRecorder.setVideoEncodingBitRate(2000 * 1024);
+        mMediaRecorder.setVideoEncodingBitRate(3000 * 1024);
 
         // Step 4: Set output file
         mMediaRecorder.setOutputFile(camcoderWriteFd);
@@ -184,15 +233,16 @@ class StreamSession {
 
 
     private void releaseMediaPipeline() {
-        Log.e(LOG_TAG, "releaseMediaPipeline");
+        Log.i(LOG_TAG, "releaseMediaPipeline thread " + Thread.currentThread().getId());
         releaseMediaRecorder();       // if you are using MediaRecorder, release it first
         releaseCamera();              // release the camera immediately on pause event
         stopFFMPEG();
+        disableHDMI();
     }
 
     private void releaseMediaRecorder(){
         if (mMediaRecorder != null) {
-            Log.e(LOG_TAG, "releaseMediaRecorder");
+            Log.d(LOG_TAG, "releaseMediaRecorder thread " + Thread.currentThread().getId());
             mMediaRecorder.stop();
             mMediaRecorder.reset();   // clear recorder configuration
             mMediaRecorder.release(); // release the recorder object
@@ -203,7 +253,7 @@ class StreamSession {
 
     private void releaseCamera(){
         if (mCamera != null){
-            Log.e(LOG_TAG, "releaseCamera");
+            Log.d(LOG_TAG, "releaseCamera thread " + Thread.currentThread().getId());
             mCamera.release();        // release the camera for other applications
             mCamera = null;
         }
@@ -211,7 +261,7 @@ class StreamSession {
 
     private void stopFFMPEG(){
         if (ffmpegProcess != null){
-            Log.e(LOG_TAG, "stopFFMPEG");
+            Log.d(LOG_TAG, "stopFFMPEG thread " + Thread.currentThread().getId());
             ffmpegProcess.stopAndDestroy();
             ffmpegProcess = null;
         }

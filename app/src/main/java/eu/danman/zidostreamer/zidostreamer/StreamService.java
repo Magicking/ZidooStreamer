@@ -26,10 +26,10 @@ public class StreamService extends Service {
         super.onCreate();
     }
 
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         checkAndStopCurrentSession();
+
         try {
             session = new StreamSession(getApplicationContext(), new StreamSession.StreamSessionCallback() {
                 @Override
@@ -43,7 +43,7 @@ public class StreamService extends Service {
             checkAndStopCurrentSession();
             return Service.START_NOT_STICKY;
         }
-        return START_NOT_STICKY;
+        return START_STICKY;
     }
 
 

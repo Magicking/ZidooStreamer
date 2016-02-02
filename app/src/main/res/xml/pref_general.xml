@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ListPreference
+        android:title="@string/pref_publish_type_title"
+        android:key="@string/pref_publish_type_key"
+        android:defaultValue="@string/pref_publish_type_default"
+        android:entryValues="@array/publish_types"
+        android:entries="@array/publish_types"
+        />
+
+    <EditTextPreference
+        android:title="@string/pref_publish_youtube_channel_title"
+        android:key="@string/pref_publish_youtube_channel"
+        android:defaultValue="@string/pref_publish_youtube_channel_default"
+        android:inputType="text"
+        android:singleLine="true" />
+
+    <EditTextPreference
+        android:title="@string/pref_publish_UDP_ip_title"
+        android:key="@string/pref_publish_UDP_ip_key"
+        android:defaultValue="@string/pref_publish_UDP_ip_default"
+        android:inputType="text"
+        android:singleLine="true" />
+
+    <EditTextPreference
+        android:title="@string/pref_publish_UDP_port_title"
+        android:key="@string/pref_publish_UDP_port_key"
+        android:defaultValue="@string/pref_publish_UDP_port_default"
+        android:inputType="number"
+        android:singleLine="true" />
+
+</PreferenceScreen>

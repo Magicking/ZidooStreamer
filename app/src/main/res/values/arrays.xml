@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="publish_types">
+        <item>@string/pref_publish_type_UDP</item>
+        <item>@string/pref_publish_type_YouTube</item>
+    </string-array>
+</resources>
