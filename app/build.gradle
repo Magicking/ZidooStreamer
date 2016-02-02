@@ -2,6 +2,12 @@ apply plugin: 'com.android.application'
 
 android {
     signingConfigs {
+        mstarsign {
+            keyAlias 'mstarkey'
+            keyPassword 'mstarmstar'
+            storeFile file('/Users/zhilin/AndroidStudioProjects/ZidoStreamer/mstar_system_sign_tool/mstar.jks')
+            storePassword 'mstarmstar'
+        }
     }
     compileSdkVersion 23
     buildToolsVersion '23.0.2'
@@ -21,7 +27,15 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.mstarsign
         }
+        debug {
+            signingConfig signingConfigs.mstarsign
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
     }
 }
 
